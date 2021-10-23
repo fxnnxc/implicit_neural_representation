@@ -44,7 +44,7 @@ class ActivationLayer(nn.Module):
         
     
     
-class ActivationNN(nn.Module):
+class FCN(nn.Module):
     def __init__(self, in_features, hidden_features, hidden_layers, out_features, outermost_linear=False, activation=F.relu):
         super().__init__()
         self.activation = activation
