@@ -9,10 +9,16 @@ import numpy as np
 import skimage
 import matplotlib.pyplot as plt
 
-def get_cameraman_tensor(sidelength):
-    img = Image.fromarray(skimage.data.camera())        
+
+def get_image_from_skimage(image_name):
+    img = getattr(skimage.data, image_name)()
+    return img
+
+def get_image_tensor(image, side_length):
+    ndarray_img = get_image_from_skimage(image)
+    img = Image.fromarray(ndarray_img)
     transform = Compose([
-        Resize(sidelength),
+        Resize(side_length),
         ToTensor(),
         Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))
     ])
@@ -30,9 +36,9 @@ def get_mgrid(sidelen, dim=2):
     return mgrid
 
 class ImageFitting(Dataset):
-    def __init__(self, sidelength):
+    def __init__(self, image_name, sidelength):
         super().__init__()
-        img = get_cameraman_tensor(sidelength)
+        img = get_image_tensor(image_name, sidelength)
         self.pixels = img.permute(1, 2, 0).view(-1, 1)
         self.coords = get_mgrid(sidelength, 2)
 
