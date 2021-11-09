@@ -1,0 +1,11 @@
+{
+    "model":{
+        "input_size":2,
+        "output_size":4,
+        "hidden_size":[256,256]
+    },
+    "epochs":100,
+    "lr":0.001,
+    "batch_size":1024
+
+}
