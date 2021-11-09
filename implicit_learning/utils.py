@@ -16,7 +16,6 @@ def laplace(y, x):
     grad = gradient(y, x)
     return divergence(grad, x)
 
-
 def divergence(y, x):
     div = 0.
     for i in range(y.shape[-1]):
