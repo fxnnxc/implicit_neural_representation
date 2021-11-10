@@ -117,18 +117,28 @@ class Siren(nn.Module):
 
         return activations
 
-class EoREN(Siren):
+class OffSetModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.offset_bias = nn.Linear(1,1)
+    
+    def forward(self, x):
+        return self.offset_bias(x)
+
+
+class EoREN():
     def __init__(self, in_features, hidden_features, hidden_layers, out_features, outermost_linear=False, 
                  first_omega_0=30, hidden_omega_0=30.):
-        super().__init__(in_features, hidden_features, hidden_layers, out_features, outermost_linear, 
-                 first_omega_0, hidden_omega_0)
 
-        self.offset_bias = nn.Parameter(torch.zeros(1)).cuda()
+        self.siren = Siren(in_features, hidden_features, hidden_layers, out_features, outermost_linear, first_omega_0, hidden_omega_0)
+        self.offset = OffSetModel()
         
+
     def forward(self, coords):
         coords = coords.clone().detach().requires_grad_(True) # allows to take derivative w.r.t. input
-        g = self.net(coords)
+        g = self.siren.net(coords)
+
         g2 = g.clone().detach().requires_grad_(False)
-        h = g2 + self.offset_bias 
+        h = self.offset(g2) 
         return h, g, coords   
     

@@ -11,7 +11,7 @@ class Trainer():
         self.lr = config.get("lr") 
 
         self.criterion = self.construct_criterion() 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
         self.trainloader = train_dataloader
         self.validloader = valid_dataloader
