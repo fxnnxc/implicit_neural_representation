@@ -30,7 +30,6 @@ class SingleImageDataset(CustomDataset):
         im = Image.open(config['data-path'])
         
         self.data = np.array(im)  #(width, height, channel)       
-        print(self.data.shape)
         self.is_gray = False 
         if len(self.data.shape) ==2:
             self.is_gray = True 
@@ -98,6 +97,46 @@ class PoissonEqn(Dataset):
 
     def __getitem__(self, idx):
         return self.coords, {'pixels':self.pixels, 'grads':self.grads, 'laplace':self.laplace}
+
+
+class PoissonEqnRGB(Dataset):
+    def __init__(self, config, transform):
+        super().__init__()
+        img = Image.open(config['data-path'])
+        img = transform(img)
+        sidelength = config.get("sidelength")
+        
+        # --- Compute gradient and laplacian       
+        RGB_grads = [] 
+        RGB_pixels = [] 
+        RGB_laplace = [] 
+        for i in range(img.shape[0]):
+            temp = img[i,:,:]
+            temp = temp.unsqueeze(0).numpy()
+            grads_x = scipy.ndimage.sobel(temp, axis=1).squeeze(0)[..., None]
+            grads_y = scipy.ndimage.sobel(temp, axis=2).squeeze(0)[..., None]
+            grads_x, grads_y = torch.from_numpy(grads_x), torch.from_numpy(grads_y)
+
+            grads = torch.stack((grads_x, grads_y), dim=-1).view(-1,2)
+            pixels = img[i,:,:].unsqueeze(0).permute(1, 2, 0).view(-1, 1)
+            laplace = scipy.ndimage.laplace(temp).squeeze(0)[..., None]
+            laplace = torch.from_numpy(laplace)       
+            RGB_pixels.append(pixels)     
+            RGB_grads.append(grads)     
+            RGB_laplace.append(laplace)
+
+        self.coords  = get_mgrid(sidelength, 2)
+        self.pixels  = torch.stack(RGB_pixels).view(-1, 1, img.shape[0])
+        self.grads   = torch.stack(RGB_grads).view(-1, 2, img.shape[0])
+        self.laplace = torch.stack(RGB_laplace).view(sidelength, sidelength,1 ,img.shape[0])
+
+        
+    def __len__(self):
+        return 1
+
+    def __getitem__(self, idx):
+        return self.coords, {'pixels':self.pixels, 'grads':self.grads, 'laplace':self.laplace}
+
 
 
 if __name__ == "__main__":
