@@ -1,3 +1,8 @@
+# -------------------------
+# 2021.11.23 Bumjin Park 
+# -------------------------
+
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -19,13 +24,130 @@ class TestModel(nn.Module):
             prev_size = size
 
         net.append(nn.Linear(prev_size, self.output_size))
-
         self.net = nn.Sequential(*net)
-
 
     def forward(self, input):
         output = self.net(input)
         return output 
+
+
+# ------
+# https://github.com/WANG-KX/SIREN-2D/blob/master/models.py
+
+class ReLU_Model(nn.Module):
+    def __init__(self, in_features, hidden_features, hidden_layers, out_features):
+        super().__init__()
+        self.layers = nn.ModuleList()
+        self.layers.append(nn.Linear(in_features, hidden_features))
+        for i in range(hidden_layers):
+            self.layers.append(nn.Linear(hidden_features, hidden_features))
+        self.layers.append(nn.Linear(hidden_features, out_features))
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x, get_gradient=False):
+        # save middle result for gradient calculation
+        x = x.clone().detach().requires_grad_(True) # allows to take derivative w.r.t. input
+        relu_masks = []
+        middle_result = x 
+        for layer in self.layers[:-1]:
+            middle_result = self.relu(layer(middle_result))
+            relu_mask = (middle_result > 0)
+            relu_mask.type_as(middle_result)
+            relu_masks.append(relu_mask)
+        # last layer
+        result = self.layers[-1](middle_result)
+
+        if not get_gradient:
+            return result, x
+
+        # do backwards 
+        B = x.shape[0]
+        gradient = self.layers[-1].weight
+        gradient = gradient.repeat(B,1)
+        for i in range(len(self.layers)-2, -1, -1):
+            layer_relu_mask = relu_masks[i]
+            layer_gradient_weight = self.layers[i].weight
+            gradient = gradient * layer_relu_mask
+            gradient = torch.matmul(gradient, layer_gradient_weight)
+
+        return result, x, gradient 
+
+
+class ReLU_PE_Model(nn.Module):
+    def __init__(self, in_features, hidden_features, hidden_layers, out_features, L):
+        '''L is the level of position encoding'''
+        super().__init__()
+        self.net = nn.ModuleList()
+        in_features = in_features + in_features * 2 * L
+        self.net.append(nn.Linear(in_features, hidden_features))
+        for i in range(hidden_layers):
+            self.net.append(nn.Linear(hidden_features, hidden_features))
+        self.net.append(nn.Linear(hidden_features, out_features))
+        self.relu = nn.ReLU(inplace=True)
+        self.L = L
+
+    def position_encoding_forward(self,x):
+        B,C = x.shape
+        x = x.view(B,C,1)
+        results = [x]
+        for i in range(1, self.L+1):
+            freq = (2**i) * np.pi
+            cos_x = torch.cos(freq*x)
+            sin_x = torch.sin(freq*x)
+            results.append(cos_x)
+            results.append(sin_x)
+        results = torch.cat(results, dim=2)
+        results = results.permute(0,2,1)
+        results = results.reshape(B,-1)
+        return results
+
+    def position_encoding_backward(self,x):
+        B,C = x.shape
+        x = x.view(B,C,1)
+        results = [torch.ones_like(x)]
+        for i in range(1, self.L+1):
+            freq = (2**i) * np.pi
+            cos_x_grad = -1.0*torch.sin(freq*x)*freq
+            sin_x_grad = torch.cos(freq*x)*freq
+            results.append(cos_x_grad)
+            results.append(sin_x_grad)
+        results = torch.cat(results, dim=2)
+        results = results.permute(0,2,1)
+        results = results.reshape(B,-1)
+        return results
+
+    def forward(self, x, get_gradient=False):
+        # save middle result for gradient calculation
+        x = x.clone().detach().requires_grad_(True) # allows to take derivative w.r.t. input
+        relu_masks = []
+        x_pe = self.position_encoding_forward(x)
+        middle_result = x_pe
+        for layer in self.net[:-1]:
+            middle_result = self.relu(layer(middle_result))
+            relu_mask = (middle_result > 0)
+            relu_mask.type_as(middle_result)
+            relu_masks.append(relu_mask)
+        # last layer
+        result = self.net[-1](middle_result)
+
+        if not get_gradient:
+            return result, x
+
+        # do backwards 
+        B,C = x.shape
+        gradient = self.net[-1].weight
+        gradient = gradient.repeat(B,1)
+        for i in range(len(self.net)-2, -1, -1):
+            layer_relu_mask = relu_masks[i]
+            layer_gradient_weight = self.net[i].weight
+            gradient = gradient * layer_relu_mask
+            gradient = torch.matmul(gradient, layer_gradient_weight)
+        # backward the gradient of position encoding
+        pe_gradient = self.position_encoding_backward(x)
+        gradient = gradient * pe_gradient
+        gradient = gradient.view(B, -1, C)
+        gradient = torch.sum(gradient, dim=1, keepdim=False)
+        return result, x, gradient
 
 
 
