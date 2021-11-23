@@ -3,3 +3,10 @@
 ```
 pip install -e .
 ```
+
+
+## Requirements 
+
+```
+pip install opencv-python
+```

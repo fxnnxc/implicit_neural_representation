@@ -1,6 +1,9 @@
 import numpy as np 
 import scipy 
 import torch 
+import math
+from skimage.metrics import structural_similarity as ssim
+
 
 def compute_image_gradient(im_array):
     grads_x = scipy.ndimage.sobel(im_array, axis=0)[..., None]
@@ -29,6 +32,20 @@ def gradient(y, x, grad_outputs=None):
     grad = torch.autograd.grad(y, [x], grad_outputs=grad_outputs, create_graph=True)[0]
     return grad
 
+
+
+def calculate_psnr(img1, img2):
+    # img1 and img2 have range [0, 255]
+    img1 = img1.astype(np.float64)
+    img2 = img2.astype(np.float64)
+    mse = np.mean((img1 - img2)**2)
+    if mse == 0:
+        return float('inf')
+    return 20 * math.log10(255.0 / math.sqrt(mse))
+
+
+def calculate_ssim(img1, img2):
+    return ssim(img1, img2, data_range=max(img1.max(), img2.max()) - min(img1.min(), img2.min()), multichannel=True)
 
 if __name__ == "__main__":
     compute_image_gradient(np.random.random(size=(10,10)))
