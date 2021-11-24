@@ -44,7 +44,7 @@ class CustomizeTrainer(PoissonTrainer):
                                         last_epoch=-1,
                                         verbose=False)
         self.beta = beta 
-        self.df = pd.DataFrame(columns=["epoch", "grad_loss", "value_loss", "lr", "psnr", "ssim"])        
+        self.df = pd.DataFrame(columns=["grad_loss", "value_loss", "lr", "psnr", "ssim","lr"])        
 
     def train(self):
         for epoch in range(self.epochs+1):
@@ -65,6 +65,14 @@ class CustomizeTrainer(PoissonTrainer):
                                                       self.detach_and_calculate_ssim(self.gt['pixels'], self.gt['pixels'])))
                 img_grad = gradient(outputs, coords)
                 self.plot(outputs, self.gt['pixels'], img_grad, self.gt, epoch)
+                self.df.loc[epoch, :] = {
+                    "grad_loss":  grad_loss.item(),
+                    "value_loss" : value_loss.item(),
+                    "psnr": self.detach_and_calculate_psnr(outputs, self.gt['pixels']),
+                    "ssmi": self.detach_and_calculate_ssim(outputs, self.gt['pixels']),
+                    "lr": (self.lr + (self.lr_end - self.lr)/self.epochs * epoch)
+                }
+                self.df.to_csv(self.save_dir+"/result.csv")
 
             self.loss.backward()
             self.optimizer.step()
@@ -109,15 +117,15 @@ class CustomizeTrainer(PoissonTrainer):
         axes[2].set_title("Pred grads")
         axes[3].set_title("GT grads")
         plt.tight_layout()
-        plt.savefig(self.save_dir +f"/result_{epoch}.{form}")
+        plt.savefig(self.save_dir +f"/image_{epoch}.{form}")
         # --- histogram 
         fig, axes = plt.subplots(1, 2, figsize=(6, 3))
-        axes[0].hist(model_output.flatten().cpu().detach().numpy(), bins=200,log=True)
-        axes[0].hist(gt['pixels'].flatten().cpu().detach().numpy(), bins=200,log=True)
+        axes[0].hist(model_output.flatten().cpu().detach().numpy(), bins=200,log=True, alpha=0.5)
+        axes[0].hist(gt['pixels'].flatten().cpu().detach().numpy(), bins=200,log=True, alpha=0.5)
         axes[0].legend(["model", "ground truth"])
         axes[0].set_title("value histogram")
-        axes[1].hist(img_grad.view(1, self.sidelength, self.sidelength,2)[:,:,:,0].flatten().cpu().detach().numpy(), bins=200,log=True)
-        axes[1].hist(gt['grads'].view(1, self.sidelength, self.sidelength,2)[:,:,:,0].flatten().cpu().detach().numpy(), bins=200,log=True)
+        axes[1].hist(img_grad.view(1, self.sidelength, self.sidelength,2)[:,:,:,0].flatten().cpu().detach().numpy(), bins=200,log=True, alpha=0.5)
+        axes[1].hist(gt['grads'].view(1, self.sidelength, self.sidelength,2)[:,:,:,0].flatten().cpu().detach().numpy(), bins=200,log=True, alpha=0.5)
         axes[1].legend(["model", "ground truth"])
         axes[1].set_title("grad histogram")
         plt.tight_layout()
