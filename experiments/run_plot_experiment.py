@@ -1,3 +1,7 @@
+# -----------------------------
+# 2021.11.24 Bumjin Park
+# -----------------------------
+
 from implicit_learning.trainer import PoissonTrainer 
 from implicit_learning.model import  Siren, ReLU_PE_Model, ReLU_Model
 from implicit_learning.dataset import PoissonEqn
@@ -47,6 +51,7 @@ class CustomizeTrainer(PoissonTrainer):
         self.df = pd.DataFrame(columns=["grad_loss", "value_loss", "lr", "psnr", "ssim","lr"])        
 
     def train(self):
+        print("--- train is started! ---")
         for epoch in range(self.epochs+1):
             inputs = self.model_input
             self.optimizer.zero_grad() 
@@ -58,11 +63,8 @@ class CustomizeTrainer(PoissonTrainer):
             if epoch %  self.print_epoch == 0:
                 print("--- Epoch %5d/%d  | lr: %.6f---\n"%(epoch, self.epochs, (self.lr + (self.lr_end - self.lr)/self.epochs * epoch)), f" Beta: {self.beta:.3f}", end=" | ")
                 print("Loss: %.6f  value_loss: %.6f  grad_loss: %.6f"%(self.loss, value_loss.item(), grad_loss.item()))
-                print("PSNR : %.3f | SSIM : %.3f | (GT-GT) PSNR : %.3f | (GT-GT) SSIM : %.3f  "\
-                                                    %(self.detach_and_calculate_psnr(outputs, self.gt['pixels']), 
-                                                      self.detach_and_calculate_ssim(outputs, self.gt['pixels']),
-                                                      self.detach_and_calculate_psnr(self.gt['pixels'], self.gt['pixels']), 
-                                                      self.detach_and_calculate_ssim(self.gt['pixels'], self.gt['pixels'])))
+                print("PSNR : %.3f | SSIM : %.3f |"%(self.detach_and_calculate_psnr(outputs, self.gt['pixels']), 
+                                                      self.detach_and_calculate_ssim(outputs, self.gt['pixels'])))
                 img_grad = gradient(outputs, coords)
                 self.plot(outputs, self.gt['pixels'], img_grad, self.gt, epoch)
                 self.df.loc[epoch, :] = {
@@ -185,5 +187,5 @@ if not os.path.isdir(config['save_dir']):
     os.mkdir(config['save_dir'])
 
 model.cuda()
-trainer = CustomizeTrainer(model, *construct_dataloader(config), config, beta=0.99)
+trainer = CustomizeTrainer(model, *construct_dataloader(config), config, beta=args.beta)
 trainer.train()
