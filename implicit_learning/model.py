@@ -119,6 +119,7 @@ class ReLU_PE_Model(nn.Module):
     def forward(self, x, get_gradient=False):
         # save middle result for gradient calculation
         x = x.clone().detach().requires_grad_(True) # allows to take derivative w.r.t. input
+        x = x.view(-1, 2)
         relu_masks = []
         x_pe = self.position_encoding_forward(x)
         middle_result = x_pe
