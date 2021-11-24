@@ -1,0 +1,12 @@
+python run_plot_experiment.py --model relu_pe \
+                              --hidden-layers 3 \
+                              --hidden-features 224 \
+                              --beta 0.1 \
+                              --epochs 1000 \
+                              --save-epoch 200 \
+                              --save-dir test1 \
+                              --image-path ../data/dog224.png \
+                              --image-length  224 \
+                              --lr 0.01 \
+                              --lr-end 0.001 \
+                              --relu-pe-freq 5
