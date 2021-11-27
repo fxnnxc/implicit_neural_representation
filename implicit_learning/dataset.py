@@ -2,6 +2,7 @@
 # 2021.11.23 Bumjin Park 
 # -------------------------
 
+from implicit_learning.utils import compute_image_gradient
 import torch
 from torch.utils.data import Dataset, DataLoader 
 import numpy as np 
@@ -85,8 +86,7 @@ class PoissonEqn(Dataset):
         img = img.unsqueeze(0)
         sidelength = config.get("sidelength")
         # Compute gradient and laplacian       
-        grads_x = scipy.ndimage.sobel(img.numpy(), axis=1).squeeze(0)[..., None]
-        grads_y = scipy.ndimage.sobel(img.numpy(), axis=2).squeeze(0)[..., None]
+        grads_x, grads_y = compute_image_gradient(img.numpy(), type=config.get("gradient_type"))
         grads_x, grads_y = torch.from_numpy(grads_x), torch.from_numpy(grads_y)
                 
         self.grads = torch.stack((grads_x, grads_y), dim=-1).view(-1, 2)

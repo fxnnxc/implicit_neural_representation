@@ -9,9 +9,27 @@ import math
 from skimage.metrics import structural_similarity as ssim
 
 
-def compute_image_gradient(im_array):
-    grads_x = scipy.ndimage.sobel(im_array, axis=0)[..., None]
-    grads_y = scipy.ndimage.sobel(im_array, axis=1)[..., None]
+def compute_image_gradient(im_array, type):
+    if type =="sobel":
+        grads_x = scipy.ndimage.sobel(im_array, axis=1).squeeze(0)[..., None]
+        grads_y = scipy.ndimage.sobel(im_array, axis=2).squeeze(0)[..., None]
+
+    elif type=="bumjin": # same sobel result  
+        v = 2*np.sqrt(2)
+        grads_x = scipy.ndimage.correlate1d(im_array, [-v,0,v], axis=1)
+        grads_x = scipy.ndimage.correlate1d(grads_x, [v,2,v], axis=0)
+        grads_x = scipy.ndimage.correlate1d(grads_x, [v,2,v], axis=2).squeeze(0)[..., None]
+
+        grads_y = scipy.ndimage.correlate1d(im_array, [-v,0,v], axis=2)
+        grads_y = scipy.ndimage.correlate1d(grads_y, [v,2,v], axis=0)
+        grads_y = scipy.ndimage.correlate1d(grads_y, [v,2,v], axis=1).squeeze(0)[..., None]
+
+    elif type=="convolve":  
+        grads_x = scipy.ndimage.correlate1d(im_array, [-1,0,1], axis=1).squeeze(0)[..., None]
+        grads_y = scipy.ndimage.correlate1d(im_array, [-1,0,1], axis=2).squeeze(0)[..., None]
+    else:
+        raise ValueError("Not implemented gradient type")
+
     return grads_x, grads_y
 
 def compute_image_divergence(img_array):
