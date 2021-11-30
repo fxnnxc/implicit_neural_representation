@@ -2,14 +2,16 @@
 # 2021.11.24 Bumjin Park
 # -----------------------------
 
-epoch=3000
-save_epoch=300
+epoch=1000
+save_epoch=200
 image_path=../data/etc/dog224.png
 image_length=224
 beta=0.0
-gradient_type=sobel
-save_name=$gradient_type
+gradient_type=convolve
+save_name=1
 
+for gradient_type in bumjin
+do 
 python run_plot_experiment.py --model siren \
                               --hidden-layers 4 \
                               --hidden-features 224 \
@@ -17,12 +19,12 @@ python run_plot_experiment.py --model siren \
                               --beta $beta \
                               --epochs  $epoch \
                               --plot-epoch $save_epoch \
-                              --save-dir $save_name \
+                              --save-dir $gradient_type \
                               --image-path $image_path \
                               --image-length  $image_length \
                               --lr 0.01 \
-                              --lr-end 0.001 \
+                              --lr-end 0.05 \
                               --plot-full
 
-
+done
 

@@ -13,6 +13,7 @@ import pandas as pd
 import torch
 import matplotlib.pyplot as plt 
 import os 
+import copy
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]= "2"
 
@@ -53,15 +54,7 @@ class CustomizeTrainer(PoissonTrainer):
         self.high_resolution = config.get("high_resolution")
         self.plot_full = config.get("plot_full", False)
         self.plot_each = config.get("plot_each", False)
-        if config.get("gradient_type") =="sobel":
-            self.multiplier = 2*4*4
-        elif config.get("gradient_type")=="convolve":
-            self.multiplier = 2  
-        elif config.get("gradient_type")=="bumjin":
-            self.multiplier = (2*np.sqrt(2)) * (2*np.sqrt(2)+2) * (2*np.sqrt(2)+2) 
-        else:
-            raise ValueError("unsupported gradient type")
-
+        
         if self.plot_full:  
             self.model_outputs = [] 
             self.model_gradients = [] 
@@ -152,7 +145,7 @@ class CustomizeTrainer(PoissonTrainer):
 
     def save_for_full_plot(self, model_output, img_grad, epoch, high_resolution=None, hs_sidelength=None ):
         self.model_outputs.append(model_output.cpu().view(self.sidelength,self.sidelength).numpy())
-        self.model_gradients.append(img_grad.norm(dim=-1).view(self.sidelength,self.sidelength).numpy())
+        self.model_gradients.append(img_grad.cpu().view(self.sidelength,self.sidelength,2)/self.sidelength)
         self.plot_epochs.append(epoch)
         if self.high_resolution:
             self.high_resolutions.append(high_resolution.norm(dim=-1).view(hs_sidelength, hs_sidelength).numpy())
@@ -178,44 +171,67 @@ class CustomizeTrainer(PoissonTrainer):
         for i in range(LENGTH):
             axes[i,0].imshow(self.model_outputs[i])
             axes[i,1].imshow(self.gt['pixels'].clone().detach().cpu().view(self.sidelength,self.sidelength).numpy())
-            axes[i,2].imshow(self.model_gradients[i])
-            axes[i,3].imshow(self.gt['grads'].clone().detach().cpu().norm(dim=-1).view(self.sidelength,self.sidelength).numpy())
+            axes[i,2].imshow(self.model_gradients[i].norm(dim=-1))
+            axes[i,3].imshow(self.gt['grads'].clone().detach().cpu().norm(dim=-1).view(self.sidelength,self.sidelength).numpy()/self.sidelength)
             axes[i,0].set_ylabel(self.plot_epochs[i], rotation=0,fontsize=20)
 
         plt.tight_layout()
+        plt.show()
         plt.savefig(self.save_dir +f"/image_full.{form}")
         plt.close(fig)
         
         # --- line plot
         fig, axes = plt.subplots(LENGTH, 2, figsize=(LENGTH*2, 4*(LENGTH)))
         x_line, y_line = 50, 50
-
         for i in range(LENGTH):
-            axes[i,0].plot(self.model_outputs[i][x_line,:])
-            axes[i,0].plot(self.gt['pixels'].clone().detach().cpu().view(self.sidelength,self.sidelength).numpy()[x_line,:])
-            axes[i,0].plot(np.cumsum(self.gt['grads'].clone().detach().cpu().view(self.sidelength,self.sidelength,2).numpy()[x_line,:,1]/self.multiplier))#/self.sidelength ))
+            # --- x
+            pixel_model = self.model_outputs[i][x_line,:]
+            pixel_truth = self.gt['pixels'].clone().detach().cpu().view(self.sidelength,self.sidelength).numpy()[x_line,:]
+            cum_sum_truth = np.cumsum(self.gt['grads'].clone().detach().cpu().view(self.sidelength,self.sidelength,2).numpy()[x_line,:,1]/self.sidelength)
+            cum_sum_model =np.cumsum(self.model_gradients[i].clone().view(self.sidelength,self.sidelength,2).numpy()[x_line,:,1])
+            # ---- offset 0
+            pixel_model -= pixel_model[0]
+            pixel_truth -= pixel_truth[0]
+            cum_sum_truth -= cum_sum_truth[0]
+            cum_sum_model -= cum_sum_model[0]
+            axes[i,0].plot(copy.deepcopy(pixel_model))
+            axes[i,0].plot(copy.deepcopy(pixel_truth))
+            axes[i,0].plot(copy.deepcopy(cum_sum_truth))
+            axes[i,0].plot(copy.deepcopy(cum_sum_model))
             axes[i,0].set_ylabel(self.plot_epochs[i], rotation=0,fontsize=20)
         
-            axes[i,1].plot(self.model_outputs[i][:,y_line])
-            axes[i,1].plot(self.gt['pixels'].clone().detach().cpu().view(self.sidelength,self.sidelength).numpy()[:,y_line])
-            axes[i,1].plot(np.cumsum(self.gt['grads'].clone().detach().cpu().view(self.sidelength,self.sidelength,2).numpy()[:,y_line,0]/self.multiplier))#/self.sidelength ))
-        axes[0,0].legend(["model_out", "GT", "cum_sum"])
+            # --- y
+            pixel_model = self.model_outputs[i][:, y_line]
+            pixel_truth = self.gt['pixels'].clone().detach().cpu().view(self.sidelength,self.sidelength).numpy()[:,y_line]
+            cum_sum_truth = np.cumsum(self.gt['grads'].clone().detach().cpu().view(self.sidelength,self.sidelength,2).numpy()[:,y_line,0]/self.sidelength)
+            cum_sum_model = np.cumsum(self.model_gradients[i].clone().view(self.sidelength,self.sidelength,2).numpy()[:,y_line,0])
+            # ---- offset 0
+            pixel_model -= pixel_model[0]
+            pixel_truth -= pixel_truth[0]
+            cum_sum_truth -= cum_sum_truth[0]
+            cum_sum_model -= cum_sum_model[0]
+            axes[i,1].plot(copy.deepcopy(pixel_model))
+            axes[i,1].plot(copy.deepcopy(pixel_truth))
+            axes[i,1].plot(copy.deepcopy(cum_sum_truth))
+            axes[i,1].plot(copy.deepcopy(cum_sum_model))
+            axes[i,1].set_ylabel(self.plot_epochs[i], rotation=0,fontsize=20)
+    
+        axes[0,0].legend(["model_out", "GT", "cum_sum(gt)", "cum_sum(model)"])
         axes[0,0].set_title(f"X_line: {x_line}", fontsize=20)
-        axes[0,1].legend(["model_out", "GT", "cum_sum"])
+        axes[0,1].legend(["model_out", "GT", "cum_sum(gt)", "cum_sum(model)"])
         axes[0,1].set_title(f"Y_line: {y_line}", fontsize=20)
         plt.tight_layout()
-
+        plt.show()
         plt.savefig(self.save_dir +f"/line_full.{form}")
         plt.close(fig)
 
         # --- histogram 
         fig, axes = plt.subplots(LENGTH, 2, figsize=(LENGTH*2, 4*(LENGTH)))
-
         for i in range(LENGTH):
             axes[i,0].hist(self.model_outputs[i].flatten(), bins=200,log=True, alpha=0.5)
             axes[i,0].hist(self.gt['pixels'].clone().detach().cpu().flatten().cpu().detach().numpy(), bins=200,log=True, alpha=0.5)
-            axes[i,1].hist(self.model_gradients[i].flatten(), bins=200,log=True, alpha=0.5)
-            axes[i,1].hist(self.gt['grads'].clone().detach().cpu().view(1, self.sidelength, self.sidelength,2)[:,:,:,0].flatten().cpu().detach().numpy()/self.multiplier, bins=200,log=True, alpha=0.5)
+            axes[i,1].hist(self.model_gradients[i].flatten().cpu().numpy(), bins=200,log=True, alpha=0.5)
+            axes[i,1].hist(self.gt['grads'].clone().detach().cpu().view(1, self.sidelength, self.sidelength,2)[:,:,:,0].flatten().cpu().detach().numpy()/self.sidelength, bins=200,log=True, alpha=0.5)
             axes[i,0].set_ylabel(self.plot_epochs[i], rotation=0,fontsize=20)
 
         axes[0,0].legend(["model", "ground truth"])
@@ -223,7 +239,7 @@ class CustomizeTrainer(PoissonTrainer):
         axes[0,1].legend(["model", "ground truth"])
         axes[0,1].set_title("grad histogram", fontsize=20)
         plt.tight_layout()
-
+        plt.show()
         plt.savefig(self.save_dir +f"/histogram_full.{form}")
         plt.close(fig)
 
@@ -253,13 +269,13 @@ class CustomizeTrainer(PoissonTrainer):
         x_line, y_line = 50, 50
         axes[0].plot(model_output.view(self.sidelength,self.sidelength).numpy()[x_line,:])
         axes[0].plot(original.view(self.sidelength,self.sidelength).numpy()[x_line,:])
-        axes[0].plot(np.cumsum(gt['grads'].clone().detach().cpu().view(self.sidelength,self.sidelength,2).numpy()[x_line,:,1] /self.multiplier ))
+        axes[0].plot(np.cumsum(gt['grads'].clone().detach().cpu().view(self.sidelength,self.sidelength,2).numpy()[x_line,:,1] ))
         axes[0].legend(["model_out", "gt", "cum_sum"])
         axes[0].set_title(f"X_line: {x_line}")
 
         axes[1].plot(model_output.view(self.sidelength,self.sidelength).numpy()[:,y_line])
         axes[1].plot(original.view(self.sidelength,self.sidelength).numpy()[:,y_line])
-        axes[1].plot(np.cumsum(gt['grads'].clone().detach().cpu().view(self.sidelength,self.sidelength,2).numpy()[:,y_line,0]/self.multiplier))
+        axes[1].plot(np.cumsum(gt['grads'].clone().detach().cpu().view(self.sidelength,self.sidelength,2).numpy()[:,y_line,0]))
         axes[1].legend(["model_out", "gt", "cum_sum"])
         axes[1].set_title(f"Y_line: {y_line}")
 
@@ -272,7 +288,7 @@ class CustomizeTrainer(PoissonTrainer):
         axes[0].hist(gt['pixels'].clone().detach().cpu().flatten().numpy(), bins=200,log=True, alpha=0.5)
         axes[0].legend(["model", "ground truth"])
         axes[0].set_title("value histogram")
-        axes[1].hist(img_grad.view(1, self.sidelength, self.sidelength,2)[:,:,:,0].flatten().numpy(), bins=200,log=True, alpha=0.5)
+        axes[1].hist(img_grad.flatten().numpy(), bins=200,log=True, alpha=0.5)
         axes[1].hist(gt['grads'].clone().detach().cpu().view(1, self.sidelength, self.sidelength,2)[:,:,:,0].flatten().numpy(), bins=200,log=True, alpha=0.5)
         axes[1].legend(["model", "ground truth"])
         axes[1].set_title("grad histogram")
