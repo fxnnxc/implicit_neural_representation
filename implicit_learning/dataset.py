@@ -117,8 +117,7 @@ class PoissonEqnRGB(Dataset):
         for i in range(img.shape[0]):
             temp = img[i,:,:]
             temp = temp.unsqueeze(0).numpy()
-            grads_x = scipy.ndimage.sobel(temp, axis=1).squeeze(0)[..., None]
-            grads_y = scipy.ndimage.sobel(temp, axis=2).squeeze(0)[..., None]
+            grads_x, grads_y = compute_image_gradient(temp, type=config.get("gradient_type"))
             grads_x, grads_y = torch.from_numpy(grads_x), torch.from_numpy(grads_y)
 
             grads = torch.stack((grads_x, grads_y), dim=-1).view(-1,2)
@@ -130,8 +129,8 @@ class PoissonEqnRGB(Dataset):
             RGB_laplace.append(laplace)
 
         self.coords  = get_mgrid(sidelength, 2)
-        self.pixels  = torch.stack(RGB_pixels).view(-1, 1, img.shape[0])
-        self.grads   = torch.stack(RGB_grads).view(-1, 2, img.shape[0])
+        self.pixels  = torch.stack(RGB_pixels,dim=-1).view(-1,  img.shape[0])
+        self.grads   = torch.stack(RGB_grads,dim=-1).view(-1, img.shape[0], 2)
         self.laplace = torch.stack(RGB_laplace).view(sidelength, sidelength,1 ,img.shape[0])
 
         
