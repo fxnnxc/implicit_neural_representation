@@ -6,7 +6,7 @@ epoch=2000
 save_epoch=500
 image_path=../../data/etc/cwkang256.jpg
 image_length=224
-beta=1.0
+beta=0.0
 gradient_type=convolve
 save_name=1
 

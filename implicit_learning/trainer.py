@@ -261,8 +261,9 @@ class PlotTrainer(PoissonTrainer):
         axes[0,0].set_title("Pred values", fontsize=20)
         axes[0,1].set_title("GT values", fontsize=20)
         for i in range(LENGTH):
-            axes[i,0].imshow(self.scaler.inverse_transform((self.model_outputs[i].reshape(*self.size))))
-            axes[i,1].imshow(self.scaler.inverse_transform(self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy()))
+            model_image = self.scaler.inverse_transform(self.model_outputs[i].reshape(*self.size))
+            axes[i,0].imshow(model_image,  vmin= model_image.min(), vmax=model_image.max())
+            axes[i,1].imshow(self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy(), vmin= model_image.min(), vmax=model_image.max())
             axes[i,0].set_ylabel(self.plot_epochs[i], rotation=0,fontsize=20)
         plt.tight_layout()
         plt.show()
