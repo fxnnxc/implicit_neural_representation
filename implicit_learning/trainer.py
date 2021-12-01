@@ -18,10 +18,11 @@ from implicit_learning.utils import *
 ##  combine the PlotTrainer -> Trainer
 
 class Trainer():
-    def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, config):
+    def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, scaler, config):
         self.model = model
         self.epochs = config.get("epochs") 
         self.lr = config.get("lr") 
+        self.scaler = scaler
 
         self.criterion = self.construct_criterion() 
         # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
@@ -69,8 +70,8 @@ class Trainer():
         print("[%d %4d] loss : %.3f"%(epoch+1, i+1, self.running_loss/len(self.trainloader)))
 
 class PoissonTrainer(Trainer):
-    def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, config):
-        super().__init__(model, train_dataloader, valid_dataloader, test_dataloader, config)
+    def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, scaler, config):
+        super().__init__(model, train_dataloader, valid_dataloader, test_dataloader, scaler, config)
     
         model_input, gt = next(iter(train_dataloader))
         self.gt = {key: value.cuda() for key, value in gt.items()}
@@ -115,11 +116,11 @@ class PoissonTrainer(Trainer):
 
 
 class PlotTrainer(PoissonTrainer):
-    def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, config, beta=0.8):
+    def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, scaler, config, beta=0.8):
         self.lr = config.get("lr")
         self.lr_end = config.get("lr_end")
         self.save_dir = config.get("save_dir")
-        super().__init__(model, train_dataloader, valid_dataloader, test_dataloader, config)
+        super().__init__(model, train_dataloader, valid_dataloader, test_dataloader, scaler, config)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.plot_epoch = config.get("plot_epoch")
         self.sidelength = config.get("sidelength")
@@ -141,7 +142,6 @@ class PlotTrainer(PoissonTrainer):
             self.model_gradients = [] 
             self.high_resolutions = []
             self.plot_epochs = []  
-
 
 
     def train(self):
@@ -186,24 +186,17 @@ class PlotTrainer(PoissonTrainer):
         if self.plot_full:
             self.store_full_plot()
 
-    def compute_grad_loss(self, outputs, coords):
-        v = self.gt['grads']
-        train_loss = self.gradients_mse(outputs, coords, v)
-        return train_loss 
 
+# ------------------------------------
+# computation of the loss 
     def compute_value_loss(self, outputs, coords):
         train_loss = ((outputs - self.gt['pixels'])**2).mean()
         return train_loss
 
-    def set_beta(self, beta):
-        self.beta = beta 
-
-    def rgb_gradient(self, y, x, grad_outputs=None):
-        grads =[]
-        for i in range(self.channel_dim):
-            grad_outputs = torch.ones_like(y[0,:,i])
-            grads.append(torch.autograd.grad(y[0,:,i], [x], grad_outputs=grad_outputs, create_graph=True)[0])
-        return grads
+    def compute_grad_loss(self, outputs, coords):
+        v = self.gt['grads']
+        train_loss = self.gradients_mse(outputs, coords, v)
+        return train_loss 
 
     def gradients_mse(self, model_output, coords, gt_gradients):
         gradients = self.rgb_gradient(model_output, coords)
@@ -213,6 +206,17 @@ class PlotTrainer(PoissonTrainer):
             gradients_loss += torch.mean((grad - gt_gradients[:,:,i,:]).pow(2).sum(-1))
             self.img_grad.append(grad.clone().detach().cpu())
         return gradients_loss
+
+    def rgb_gradient(self, y, x, grad_outputs=None):
+        grads =[]
+        y = y.view(1, -1, self.channel_dim)
+        grad_outputs = [torch.ones_like(y[0,:,i]) for i in range(self.channel_dim)]
+        for i in range(self.channel_dim):
+            grads.append(torch.autograd.grad(y[0,:,i], [x], grad_outputs=grad_outputs[i], create_graph=True)[0])
+        return grads
+
+# ---------------------------------------------------
+# Additional Methods including psnr, ssim, and plotting
 
     def detach_and_calculate_psnr(self, model_output, ground_truth):
         model_output = model_output.view(*self.size).clone().detach().cpu().numpy()
@@ -257,8 +261,8 @@ class PlotTrainer(PoissonTrainer):
         axes[0,0].set_title("Pred values", fontsize=20)
         axes[0,1].set_title("GT values", fontsize=20)
         for i in range(LENGTH):
-            axes[i,0].imshow(self.model_outputs[i].reshape(*self.size))
-            axes[i,1].imshow(self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy())
+            axes[i,0].imshow(self.scaler.inverse_transform((self.model_outputs[i].reshape(*self.size))))
+            axes[i,1].imshow(self.scaler.inverse_transform(self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy()))
             axes[i,0].set_ylabel(self.plot_epochs[i], rotation=0,fontsize=20)
         plt.tight_layout()
         plt.show()

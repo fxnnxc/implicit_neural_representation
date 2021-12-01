@@ -78,18 +78,21 @@ def get_mgrid(sidelen, dim=2):
     return mgrid
 
 class PoissonEqn(Dataset):
-    def __init__(self, config, transform):
+    def __init__(self, config, transform, scaler):
         super().__init__()
         img = Image.open(config['data-path'])
         img = transform(img)
         img = img.mean(axis=0)
+        img = scaler.fit_transform(img)
+
+
         img = img.unsqueeze(0)
         sidelength = config.get("sidelength")
         # Compute gradient and laplacian       
         grads_x, grads_y = compute_image_gradient(img.numpy(), type=config.get("gradient_type"))
         grads_x, grads_y = torch.from_numpy(grads_x), torch.from_numpy(grads_y)
                 
-        self.grads = torch.stack((grads_x, grads_y), dim=-1).view(-1, 2)
+        self.grads = torch.stack((grads_x, grads_y), dim=-1).view(-1,1, 2)
         self.laplace = scipy.ndimage.laplace(img.numpy()).squeeze(0)[..., None]
         self.laplace = torch.from_numpy(self.laplace)
         
@@ -104,10 +107,12 @@ class PoissonEqn(Dataset):
 
 
 class PoissonEqnRGB(Dataset):
-    def __init__(self, config, transform):
+    def __init__(self, config, transform,scaler):
         super().__init__()
         img = Image.open(config['data-path'])
         img = transform(img)
+        img = scaler.fit_transform(img)
+
         sidelength = config.get("sidelength")
         
         # --- Compute gradient and laplacian       

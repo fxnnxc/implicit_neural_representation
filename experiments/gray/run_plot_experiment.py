@@ -8,28 +8,46 @@ from implicit_learning.dataset import PoissonEqn
 from implicit_learning.utils import *
 from torchvision.transforms import Resize, Compose, ToTensor, Normalize
 from torch.utils.data import DataLoader 
+
 import torch
 import os 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]= "2"
 
+class MinMaxScaler():
+    def __init__(self):
+        self.MAX = 0 
+        self.MIN = 0
+
+    def fit_transform(self, img):
+        self.MAX = img.max()
+        self.MIN = img.min()
+        assert self.MAX > self.MIN
+        return (img - self.MIN)/(self.MAX-self.MIN)
+    
+    def inverse_transform(self, img):
+        img = img * (self.MAX - self.MIN).numpy()
+        img = img + img.min()
+        return img 
+
 def construct_dataloader(config):
     sidelength = config['sidelength']
+    scaler = MinMaxScaler()
     transform = Compose([
         Resize(sidelength),
         ToTensor(),
-        Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))
+        #Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))
     ])
 
-    train = PoissonEqn(config, transform=transform)
-    valid = PoissonEqn(config, transform=transform)
-    test  = PoissonEqn(config, transform=transform)
+    train = PoissonEqn(config, transform=transform, scaler=scaler)
+    valid = PoissonEqn(config, transform=transform, scaler=scaler)
+    test  = PoissonEqn(config, transform=transform, scaler=scaler)
     
     train_dataloader =  DataLoader(train, batch_size=config.get("batch_size"), shuffle=True, pin_memory=True)
     valid_datalodaer =  DataLoader(valid, batch_size=config.get("batch_size"), shuffle=True, pin_memory=True)
     test_dataloader =   DataLoader(test, batch_size=config.get("batch_size"), shuffle=True, pin_memory=True)
 
-    return train_dataloader, valid_datalodaer, test_dataloader
+    return train_dataloader, valid_datalodaer, test_dataloader, scaler 
 
 import argparse
 if __name__=="__main__":

@@ -2,11 +2,11 @@
 # 2021.11.24 Bumjin Park
 # -----------------------------
 
-epoch=10
-save_epoch=2
+epoch=100
+save_epoch=20
 image_path=../../data/etc/dog224.png
 image_length=224
-beta=0.0
+beta=1.0
 gradient_type=convolve
 save_name=1
 
@@ -24,7 +24,7 @@ python run_plot_experiment.py --model siren \
                               --image-path $image_path \
                               --image-length  $image_length \
                               --lr 0.01 \
-                              --lr-end 0.05 \
+                              --lr-end 0.001 \
                               --plot-full
 
 done
