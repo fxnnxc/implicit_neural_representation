@@ -85,7 +85,6 @@ class PoissonEqn(Dataset):
         img = img.mean(axis=0)
         img = scaler.fit_transform(img)
 
-
         img = img.unsqueeze(0)
         sidelength = config.get("sidelength")
         # Compute gradient and laplacian       
@@ -134,8 +133,8 @@ class PoissonEqnRGB(Dataset):
             RGB_laplace.append(laplace)
 
         self.coords  = get_mgrid(sidelength, 2)
-        self.pixels  = torch.stack(RGB_pixels,dim=-1).view(-1,  img.shape[0])
-        self.grads   = torch.stack(RGB_grads,dim=-1).view(-1, img.shape[0], 2)
+        self.pixels  = torch.stack(RGB_pixels,dim=2).view(-1,  img.shape[0])
+        self.grads   = torch.stack(RGB_grads,dim=2).view(-1, img.shape[0], 2)
         self.laplace = torch.stack(RGB_laplace).view(sidelength, sidelength,1 ,img.shape[0])
 
         

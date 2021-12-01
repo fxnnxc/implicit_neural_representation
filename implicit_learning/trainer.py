@@ -13,6 +13,7 @@ import torch
 import matplotlib.pyplot as plt 
 import copy
 from implicit_learning.utils import *
+from tqdm import tqdm 
 
 ## TODO---------------
 ##  combine the PlotTrainer -> Trainer
@@ -146,7 +147,7 @@ class PlotTrainer(PoissonTrainer):
 
     def train(self):
         print("===== train is started! =====")
-        for epoch in range(self.epochs+1):
+        for epoch in tqdm(range(self.epochs+1)):
             inputs = self.model_input
             self.optimizer.zero_grad() 
             outputs, coords =self.model(inputs)
@@ -238,7 +239,6 @@ class PlotTrainer(PoissonTrainer):
         return hs_image, int(self.sidelength*scale)
 
     def save_for_full_plot(self, model_output, img_grad, epoch, high_resolution=None, hs_sidelength=None):
-        print(model_output.size())
         self.model_outputs.append(model_output.cpu().view(*self.size).numpy())
         self.model_gradients.append([grad.cpu().view(*(self.size[:2]),2)/self.sidelength for grad in img_grad])
         self.plot_epochs.append(epoch)
@@ -261,8 +261,10 @@ class PlotTrainer(PoissonTrainer):
         axes[0,0].set_title("Pred values", fontsize=20)
         axes[0,1].set_title("GT values", fontsize=20)
         for i in range(LENGTH):
-            model_image = self.scaler.inverse_transform(self.model_outputs[i].reshape(*self.size))
-            axes[i,0].imshow(model_image,  vmin= model_image.min(), vmax=model_image.max())
+            model_image = copy.deepcopy(self.model_outputs[i].reshape(*self.size))
+            for c in range(self.channel_dim):
+                model_image[:,:,c] = (model_image[:,:,c] - model_image[:,:,c].min())/(model_image[:,:,c].max() - model_image[:,:,c].min())
+            axes[i,0].imshow(model_image)
             axes[i,1].imshow(self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy(), vmin= model_image.min(), vmax=model_image.max())
             axes[i,0].set_ylabel(self.plot_epochs[i], rotation=0,fontsize=20)
         plt.tight_layout()
@@ -291,7 +293,7 @@ class PlotTrainer(PoissonTrainer):
         for i in range(LENGTH):
             # --- x
             pixel_model = self.model_outputs[i][x_line,:,dim]
-            pixel_truth = self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy()[x_line,:,dim]
+            pixel_truth = self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy()[x_line, :, dim]
             cum_sum_truth = np.cumsum(self.gt['grads'].clone().detach().cpu().view(*self.size, 2).numpy()[x_line,:,dim,1]/self.sidelength)
             cum_sum_model =np.cumsum(self.model_gradients[i][dim].clone().view(*(self.size[:2]),2).numpy()[x_line,:,1])
             # ---- offset 0
@@ -306,8 +308,8 @@ class PlotTrainer(PoissonTrainer):
             axes[i,0].set_ylabel(self.plot_epochs[i], rotation=0,fontsize=20)
         
             # --- y
-            pixel_model = self.model_outputs[i][:, y_line,dim]
-            pixel_truth = self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy()[:,y_line,dim]
+            pixel_model = self.model_outputs[i][:, y_line, dim]
+            pixel_truth = self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy()[:, y_line, dim]
             cum_sum_truth = np.cumsum(self.gt['grads'].clone().detach().cpu().view(*self.size,2).numpy()[:,y_line,dim,0]/self.sidelength)
             cum_sum_model = np.cumsum(self.model_gradients[i][dim].clone().view(*(self.size[:2]),2).numpy()[:,y_line,0])
             # ---- offset 0
