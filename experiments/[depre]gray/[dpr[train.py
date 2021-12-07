@@ -14,22 +14,6 @@ import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]= "2"
 
-class MinMaxScaler():
-    def __init__(self):
-        self.MAX = 0 
-        self.MIN = 0
-
-    def fit_transform(self, img):
-        self.MAX = img.max()
-        self.MIN = img.min()
-        assert self.MAX > self.MIN
-        return (img - self.MIN)/(self.MAX-self.MIN)
-    
-    def inverse_transform(self, img):
-        img = img * (self.MAX - self.MIN).numpy()
-        img = img + img.min()
-        return img 
-
 def construct_dataloader(config):
     sidelength = config['sidelength']
     scaler = MinMaxScaler()

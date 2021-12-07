@@ -4,7 +4,7 @@
 
 epoch=1000
 save_epoch=200
-image_path=../../data/etc/eagle256.jpg
+image_path=../../data/etc/cwkang256.jpg
 image_path2=../../data/etc/background256.jpg
 image_length=256
 
@@ -14,7 +14,7 @@ gradient_type=convolve
 
 for gradient_type in convolve
 do 
-save_name=$gradient_type
+save_name=cwkang
 python run_composition_experiment.py --model siren \
                              --channel-dim 1 \
                               --hidden-layers 5 \
@@ -24,7 +24,7 @@ python run_composition_experiment.py --model siren \
                               --alpha $alpha \
                               --epochs  $epoch \
                               --plot-epoch $save_epoch \
-                              --save-dir $gradient_type \
+                              --save-dir $save_name \
                               --image-path $image_path \
                               --image-path2 $image_path2 \
                               --image-length  $image_length \

@@ -17,115 +17,132 @@ from tqdm import tqdm
 
 ## TODO---------------
 ##  combine the PlotTrainer -> Trainer
+# class Trainer():
+#     def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, scaler, config):
+#         self.model = model
+#         self.epochs = config.get("epochs") 
+#         self.lr = config.get("lr") 
+#         self.scaler = scaler
 
-class Trainer():
-    def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, scaler, config):
+#         self.criterion = self.construct_criterion() 
+#         # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
+#         self.trainloader = train_dataloader
+#         self.validloader = valid_dataloader
+#         self.testloader = test_dataloader
+
+#         self.lambda_rgb = 0.3 
+#         self.lambda_grad = 0.3 
+#         self.lambda_lap = 0.4
+
+#         self.device  = torch.device("cuda" if config.get("gpu", False) else 'cpu')
+#         self.gpu = config.get("gpu", False)
+
+#     def construct_criterion(self):
+#         return nn.L1Loss()
+
+#     def compute_loss(self, outputs, labels):
+#         return  self.criterion(outputs, labels)
+
+#     def train(self):
+#         if self.gpu:
+#             self.model.cuda(self.device)
+#             print(torch.cuda.is_available())
+#         print("train is started!")
+#         for epoch in tqdm(range(self.epochs)):
+#             self.running_loss = 0.0 
+#             for i, data in enumerate(self.trainloader, 0):
+#                 inputs, labels = data 
+
+#                 self.optimizer.zero_grad() 
+#                 outputs =self.model(inputs)
+#                 self.loss = self.compute_loss(outputs, labels) 
+#                 self.loss.backward()
+#                 self.optimizer.step()
+
+#                 self.running_loss += self.loss.item()
+#             self.print_stats(epoch, i)
+    
+#     def test(self):
+#         return 
+
+#     def print_stats(self, epoch, i):
+#         print("[%d %4d] loss : %.3f"%(epoch+1, i+1, self.running_loss/len(self.trainloader)))
+
+# class PoissonTrainer():
+#     def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, scaler, config):
+#         # super().__init__(model, train_dataloader, valid_dataloader, test_dataloader, scaler, config)
+#         pass 
+#     def compute_loss(self, outputs, coords):
+#         train_loss = self.gradients_mse(outputs, coords, self.gt['grads'])
+#         return train_loss 
+
+#     def gradients_mse(self, model_output, coords, gt_gradients):
+#         # compute gradients on the model
+#         gradients = gradient(model_output, coords)
+#         gradients_loss = torch.mean((gradients - gt_gradients).pow(2).sum(-1))
+#         return gradients_loss
+
+#     def train(self):
+#         print("train is started!")
+#         for epoch in range(self.epochs):
+#             inputs = self.model_input
+
+#             self.optimizer.zero_grad() 
+#             outputs, coords =self.model(inputs)
+#             self.loss = self.compute_loss(outputs, coords) 
+#             self.loss.backward()
+#             self.optimizer.step()
+
+#             if epoch %100 == 0:
+#                 print("Epoch %4d"%(epoch), f" : Loss : {self.loss}")
+#                 img_grad = gradient(outputs, coords)
+#                 self.plot(img_grad, self.gt)
+    
+#     def plot(self, img_grad, gt):
+
+#         fig, axes = plt.subplots(1, 2, figsize=(4, 2))
+#         # axes[0].imshow(model_output.cpu().view(128,128).detach().numpy())
+#         # axes[1].imshow(original.view(128,128))
+#         axes[0].imshow(img_grad.cpu().norm(dim=-1).view(128,128).detach().numpy())
+#         axes[1].imshow(gt['grads'].cpu().norm(dim=-1).view(128,128).detach().numpy())
+#         plt.show()
+
+
+
+
+class PlotTrainer():
+    def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, scaler, config, beta=0.8):
+        self.lr = config.get("lr")
+        self.lr_end = config.get("lr_end")
+        self.save_dir = config.get("save_dir")
+        # super().__init__(model, train_dataloader, valid_dataloader, test_dataloader, scaler, config)
+
         self.model = model
         self.epochs = config.get("epochs") 
         self.lr = config.get("lr") 
         self.scaler = scaler
 
-        self.criterion = self.construct_criterion() 
+        # self.criterion = self.construct_criterion() 
         # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
         self.trainloader = train_dataloader
         self.validloader = valid_dataloader
         self.testloader = test_dataloader
 
-        self.lambda_rgb = 0.3 
-        self.lambda_grad = 0.3 
-        self.lambda_lap = 0.4
-
         self.device  = torch.device("cuda" if config.get("gpu", False) else 'cpu')
         self.gpu = config.get("gpu", False)
 
-    def construct_criterion(self):
-        return nn.L1Loss()
-
-    def compute_loss(self, outputs, labels):
-        return  self.criterion(outputs, labels)
-
-    def train(self):
-        if self.gpu:
-            self.model.cuda(self.device)
-            print(torch.cuda.is_available())
-        print("train is started!")
-        for epoch in tqdm(range(self.epochs)):
-            self.running_loss = 0.0 
-            for i, data in enumerate(self.trainloader, 0):
-                inputs, labels = data 
-
-                self.optimizer.zero_grad() 
-                outputs =self.model(inputs)
-                self.loss = self.compute_loss(outputs, labels) 
-                self.loss.backward()
-                self.optimizer.step()
-
-                self.running_loss += self.loss.item()
-            self.print_stats(epoch, i)
-    
-    def test(self):
-        return 
-
-    def print_stats(self, epoch, i):
-        print("[%d %4d] loss : %.3f"%(epoch+1, i+1, self.running_loss/len(self.trainloader)))
-
-class PoissonTrainer(Trainer):
-    def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, scaler, config):
-        super().__init__(model, train_dataloader, valid_dataloader, test_dataloader, scaler, config)
-    
         model_input, gt = next(iter(train_dataloader))
         self.gt = {key: value.cuda() for key, value in gt.items()}
         self.model_input = model_input.cuda()
 
-    def compute_loss(self, outputs, coords):
-        train_loss = self.gradients_mse(outputs, coords, self.gt['grads'])
-        return train_loss 
 
-    def gradients_mse(self, model_output, coords, gt_gradients):
-        # compute gradients on the model
-        gradients = gradient(model_output, coords)
-        gradients_loss = torch.mean((gradients - gt_gradients).pow(2).sum(-1))
-        return gradients_loss
-
-    def train(self):
-        print("train is started!")
-        for epoch in range(self.epochs):
-            inputs = self.model_input
-
-            self.optimizer.zero_grad() 
-            outputs, coords =self.model(inputs)
-            self.loss = self.compute_loss(outputs, coords) 
-            self.loss.backward()
-            self.optimizer.step()
-
-            if epoch %100 == 0:
-                print("Epoch %4d"%(epoch), f" : Loss : {self.loss}")
-                img_grad = gradient(outputs, coords)
-                self.plot(img_grad, self.gt)
-    
-    def plot(self, img_grad, gt):
-
-        fig, axes = plt.subplots(1, 2, figsize=(4, 2))
-        # axes[0].imshow(model_output.cpu().view(128,128).detach().numpy())
-        # axes[1].imshow(original.view(128,128))
-        axes[0].imshow(img_grad.cpu().norm(dim=-1).view(128,128).detach().numpy())
-        axes[1].imshow(gt['grads'].cpu().norm(dim=-1).view(128,128).detach().numpy())
-        plt.show()
-
-
-
-
-class PlotTrainer(PoissonTrainer):
-    def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, scaler, config, beta=0.8):
-        self.lr = config.get("lr")
-        self.lr_end = config.get("lr_end")
-        self.save_dir = config.get("save_dir")
-        super().__init__(model, train_dataloader, valid_dataloader, test_dataloader, scaler, config)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.plot_epoch = config.get("plot_epoch")
         self.sidelength = config.get("sidelength")
         self.channel_dim = config.get("model")['out_features']
+        self.input_dim = config.get("model")['in_features']
         self.size = (self.sidelength, self.sidelength, self.channel_dim)
 
         self.scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=self.optimizer,
@@ -140,7 +157,7 @@ class PlotTrainer(PoissonTrainer):
         
         if self.plot_full:  
             self.model_outputs = [] 
-            self.model_gradients = [] 
+            self.model_gradients = [] 2
             self.high_resolutions = []
             self.plot_epochs = []  
 
@@ -195,8 +212,7 @@ class PlotTrainer(PoissonTrainer):
         return train_loss
 
     def compute_grad_loss(self, outputs, coords):
-        v = self.gt['grads']
-        train_loss = self.gradients_mse(outputs, coords, v)
+        train_loss = self.gradients_mse(outputs, coords, self.gt['grads'])
         return train_loss 
 
     def gradients_mse(self, model_output, coords, gt_gradients):
@@ -204,13 +220,13 @@ class PlotTrainer(PoissonTrainer):
         gradients_loss = 0
         self.img_grad = [] 
         for i, grad in enumerate(gradients):
-            gradients_loss += torch.mean((grad - gt_gradients[:,:,i,:]).pow(2).sum(-1))
+            gradients_loss += torch.mean((grad - gt_gradients[:,:,i,:]).pow(2).sum(-1)) # normalize by the number of channel
             self.img_grad.append(grad.clone().detach().cpu())
         return gradients_loss
 
     def rgb_gradient(self, y, x, grad_outputs=None):
         grads =[]
-        y = y.view(1, -1, self.channel_dim)
+        # y = y.view(1, -1, self.channel_dim)
         grad_outputs = [torch.ones_like(y[0,:,i]) for i in range(self.channel_dim)]
         for i in range(self.channel_dim):
             grads.append(torch.autograd.grad(y[0,:,i], [x], grad_outputs=grad_outputs[i], create_graph=True)[0])
@@ -239,14 +255,18 @@ class PlotTrainer(PoissonTrainer):
         return hs_image, int(self.sidelength*scale)
 
     def save_for_full_plot(self, model_output, img_grad, epoch, high_resolution=None, hs_sidelength=None):
-        self.model_outputs.append(model_output.cpu().view(*self.size).numpy())
-        self.model_gradients.append([grad.cpu().view(*(self.size[:2]),2)/self.sidelength for grad in img_grad])
+        # ----------------------------------------------------
+        # reshape the gradient to the original image size at the plot level
+        # ----------------------------------------------------
+        self.model_outputs.append(model_output.clone().detach().cpu().view(*self.size).numpy())
+        self.model_gradients.append([grad.cpu().view(*(self.size[:2]),2) for grad in img_grad])
         self.plot_epochs.append(epoch)
         if self.high_resolution:
             self.high_resolutions.append(high_resolution.norm(dim=-1).view(hs_sidelength, hs_sidelength, self.channel_dim).numpy())
             self.hs_sidelength= hs_sidelength
 
     def store_full_plot(self):
+        
         form = "png"
         # --- image plot
         LENGTH = len(self.plot_epochs)
@@ -261,11 +281,9 @@ class PlotTrainer(PoissonTrainer):
         axes[0,0].set_title("Pred values", fontsize=20)
         axes[0,1].set_title("GT values", fontsize=20)
         for i in range(LENGTH):
-            model_image = copy.deepcopy(self.model_outputs[i].reshape(*self.size))
-            for c in range(self.channel_dim):
-                model_image[:,:,c] = (model_image[:,:,c] - model_image[:,:,c].min())/(model_image[:,:,c].max() - model_image[:,:,c].min())
+            model_image = self.scaler.inverse_transform(copy.deepcopy(self.model_outputs[i].reshape(*self.size)))
             axes[i,0].imshow(model_image)
-            axes[i,1].imshow(self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy(), vmin= model_image.min(), vmax=model_image.max())
+            axes[i,1].imshow(self.scaler.inverse_transform(self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy()))
             axes[i,0].set_ylabel(self.plot_epochs[i], rotation=0,fontsize=20)
         plt.tight_layout()
         plt.show()
@@ -279,7 +297,7 @@ class PlotTrainer(PoissonTrainer):
             for k in range(self.channel_dim):
                 axes[0,2*k].set_title(f"Ch:{k} Pred grads", fontsize=20)
                 axes[0,2*k+1].set_title(f"Ch:{k} GT grads", fontsize=20)   
-                axes[i,2*k].imshow(self.model_gradients[i][k].norm(dim=-1))
+                axes[i,2*k].imshow(self.model_gradients[i][k].norm(dim=-1)/self.sidelength)
                 axes[i,2*k+1].imshow(self.gt['grads'][:,:,k,:].clone().detach().cpu().norm(dim=-1).view(*(self.size[:2])).numpy()/self.sidelength)
                 
         plt.tight_layout()
@@ -294,8 +312,8 @@ class PlotTrainer(PoissonTrainer):
             # --- x
             pixel_model = self.model_outputs[i][x_line,:,dim]
             pixel_truth = self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy()[x_line, :, dim]
-            cum_sum_truth = np.cumsum(self.gt['grads'].clone().detach().cpu().view(*self.size, 2).numpy()[x_line,:,dim,1]/self.sidelength)
-            cum_sum_model =np.cumsum(self.model_gradients[i][dim].clone().view(*(self.size[:2]),2).numpy()[x_line,:,1])
+            cum_sum_truth = np.cumsum(self.gt['grads'].clone().detach().view(*(self.size),2).cpu().numpy()[x_line,:,dim,1]/self.sidelength)
+            cum_sum_model =np.cumsum(self.model_gradients[i][dim].clone().view(*(self.size[:2]),2).numpy()[x_line,:, 1]/self.sidelength)
             # ---- offset 0
             pixel_model -= pixel_model[0]
             pixel_truth -= pixel_truth[0]
@@ -310,8 +328,8 @@ class PlotTrainer(PoissonTrainer):
             # --- y
             pixel_model = self.model_outputs[i][:, y_line, dim]
             pixel_truth = self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy()[:, y_line, dim]
-            cum_sum_truth = np.cumsum(self.gt['grads'].clone().detach().cpu().view(*self.size,2).numpy()[:,y_line,dim,0]/self.sidelength)
-            cum_sum_model = np.cumsum(self.model_gradients[i][dim].clone().view(*(self.size[:2]),2).numpy()[:,y_line,0])
+            cum_sum_truth = np.cumsum(self.gt['grads'].clone().detach().view(*(self.size),2).cpu().numpy()[:,y_line,dim,0]/self.sidelength)
+            cum_sum_model = np.cumsum(self.model_gradients[i][dim].clone().view(*(self.size[:2]),2).numpy()[:,y_line,0]/self.sidelength)
             # ---- offset 0
             pixel_model -= pixel_model[0]
             pixel_truth -= pixel_truth[0]
@@ -339,7 +357,7 @@ class PlotTrainer(PoissonTrainer):
             for k in range(self.channel_dim):
                 axes[i,2*k].hist(self.model_outputs[i].flatten(), bins=200,log=True, alpha=0.5)
                 axes[i,2*k].hist(self.gt['pixels'][:,:,k].clone().detach().cpu().flatten().cpu().detach().numpy(), bins=200,log=True, alpha=0.5)
-                axes[i,2*k+1].hist(self.model_gradients[i][k].flatten().cpu().numpy(), bins=200,log=True, alpha=0.5)
+                axes[i,2*k+1].hist(self.model_gradients[i][k].flatten().cpu().numpy()/self.sidelength, bins=200,log=True, alpha=0.5)
                 axes[i,2*k+1].hist(self.gt['grads'][:,:,k,:].clone().detach().cpu().flatten().numpy()/self.sidelength, bins=200,log=True, alpha=0.5)
 
                 axes[0,0].legend(["model", "ground truth"])
