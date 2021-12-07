@@ -12,8 +12,11 @@ import pandas as pd
 import torch
 import matplotlib.pyplot as plt 
 import copy
-from implicit_learning.utils import *
 from tqdm import tqdm 
+
+from implicit_learning.dataset import ImageDataset
+from torchvision.transforms import Resize, Compose, ToTensor, Normalize
+from torch.utils.data import DataLoader 
 
 ## TODO---------------
 ##  combine the PlotTrainer -> Trainer
@@ -109,7 +112,23 @@ from tqdm import tqdm
 #         plt.show()
 
 
+def construct_dataloader(config):
+    sidelength = config['sidelength']
+    scaler = MinMaxScaler(config['model']['out_features'])
+    transform = Compose([
+        Resize(sidelength),
+        ToTensor(),
+        #Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))
+    ])
+    train = ImageDataset(config, transform=transform, scaler=scaler)
+    valid = ImageDataset(config, transform=transform, scaler=scaler)
+    test  = ImageDataset(config, transform=transform, scaler=scaler)
+    
+    train_dataloader =  DataLoader(train, batch_size=config.get("batch_size"), shuffle=True, pin_memory=True)
+    valid_datalodaer =  DataLoader(valid, batch_size=config.get("batch_size"), shuffle=True, pin_memory=True)
+    test_dataloader =   DataLoader(test, batch_size=config.get("batch_size"), shuffle=True, pin_memory=True)
 
+    return train_dataloader, valid_datalodaer, test_dataloader, scaler 
 
 class PlotTrainer():
     def __init__(self, model, train_dataloader, valid_dataloader, test_dataloader, scaler, config, beta=0.8):
@@ -157,7 +176,7 @@ class PlotTrainer():
         
         if self.plot_full:  
             self.model_outputs = [] 
-            self.model_gradients = [] 2
+            self.model_gradients = []
             self.high_resolutions = []
             self.plot_epochs = []  
 
@@ -282,8 +301,12 @@ class PlotTrainer():
         axes[0,1].set_title("GT values", fontsize=20)
         for i in range(LENGTH):
             model_image = self.scaler.inverse_transform(copy.deepcopy(self.model_outputs[i].reshape(*self.size)))
-            axes[i,0].imshow(model_image)
-            axes[i,1].imshow(self.scaler.inverse_transform(self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy()))
+            if self.channel_dim ==1:
+                axes[i,0].imshow(model_image, cmap='gray')
+                axes[i,1].imshow(self.scaler.inverse_transform(self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy()),  cmap='gray')
+            else:
+                axes[i,0].imshow(model_image)
+                axes[i,1].imshow(self.scaler.inverse_transform(self.gt['pixels'].clone().detach().cpu().view(*self.size).numpy()))
             axes[i,0].set_ylabel(self.plot_epochs[i], rotation=0,fontsize=20)
         plt.tight_layout()
         plt.show()

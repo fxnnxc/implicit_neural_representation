@@ -2,9 +2,9 @@
 # 2021.11.24 Bumjin Park
 # -----------------------------
 
-epoch=1000
-save_epoch=200
-image_path=../data/Set5/bird.png
+epoch=2000
+save_epoch=400
+image_path=../data/etc/man256.png
 image_length=256
 beta=1.0
 gradient_type=convolve
@@ -13,7 +13,7 @@ save_name=1
 for gradient_type in convolve
 do 
 python train.py --model siren \
-                             --channel-dim 3 \
+                             --channel-dim 1 \
                               --hidden-layers 5 \
                               --hidden-features 256 \
                               --gradient-type $gradient_type \
@@ -24,7 +24,7 @@ python train.py --model siren \
                               --image-path $image_path \
                               --image-length  $image_length \
                               --lr 0.01 \
-                              --lr-end 0.005 \
+                              --lr-end 0.001 \
                               --plot-full \
                               #--relu-pe-freq 10
 done

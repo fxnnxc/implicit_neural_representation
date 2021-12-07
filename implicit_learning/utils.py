@@ -9,6 +9,7 @@ import math
 from skimage.metrics import structural_similarity as ssim
 
 
+
 def compute_image_gradient(im_array, type, v=1):
     LENGTH = im_array.shape[1], im_array.shape[2]
     im_array = im_array.reshape(*LENGTH)
@@ -137,6 +138,9 @@ class MinMaxScaler():
         else:
             raise NotImplementedError()
         return img 
+
+
+
 
 def get_mgrid(sidelen, dim=2):
     '''Generates a flattened grid of (x,y,...) coordinates in a range of -1 to 1.

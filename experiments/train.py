@@ -3,35 +3,12 @@
 # -----------------------------
 
 from typing import MutableMapping
-from implicit_learning.trainer import PlotTrainer
+from implicit_learning.trainer import PlotTrainer, construct_dataloader
 from implicit_learning.model import  Siren, ReLU_PE_Model, ReLU_Model
-from implicit_learning.dataset import ImageDataset
-from implicit_learning.utils import *
-from torchvision.transforms import Resize, Compose, ToTensor, Normalize
-from torch.utils.data import DataLoader 
 
 import os 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]= "2"
-
-
-def construct_dataloader(config):
-    sidelength = config['sidelength']
-    scaler = MinMaxScaler(config['model']['out_features'])
-    transform = Compose([
-        Resize(sidelength),
-        ToTensor(),
-        #Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))
-    ])
-    train = ImageDataset(config, transform=transform, scaler=scaler)
-    valid = ImageDataset(config, transform=transform, scaler=scaler)
-    test  = ImageDataset(config, transform=transform, scaler=scaler)
-    
-    train_dataloader =  DataLoader(train, batch_size=config.get("batch_size"), shuffle=True, pin_memory=True)
-    valid_datalodaer =  DataLoader(valid, batch_size=config.get("batch_size"), shuffle=True, pin_memory=True)
-    test_dataloader =   DataLoader(test, batch_size=config.get("batch_size"), shuffle=True, pin_memory=True)
-
-    return train_dataloader, valid_datalodaer, test_dataloader, scaler 
 
 import argparse
 if __name__=="__main__":
