@@ -52,7 +52,8 @@ class CompositePoissonEqn(Dataset):
         img1 = img1.unsqueeze(0)
         img2 = img2.unsqueeze(0)
         
-        sidelength = config.get("sidelength")
+        sidelength_W = config.get("sidelength-W")
+        sidelength_H = config.get("sidelength-H")
         # Compute gradient and laplacian       
         grads_x1, grads_y1 = compute_image_gradient(img1.numpy(), type=config.get("gradient_type"))
         grads_x1, grads_y1 = torch.from_numpy(grads_x1), torch.from_numpy(grads_y1)

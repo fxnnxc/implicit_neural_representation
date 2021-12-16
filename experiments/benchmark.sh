@@ -1,14 +1,13 @@
 # -----------------------------
 # 2021.11.24 Bumjin Park
 # -----------------------------
-epoch=2000
-save_epoch=400
-image_path=../data/Set14/ppt3.png
-beta=1.0
+epoch=1000
+save_epoch=500
+beta=0.0
 gradient_type=convolve
-save_name=1
+save_name=Set14
 
-for gradient_type in convolve
+for image_path in ./../data/Set14/*
 do 
 python train.py --model siren \
                              --channel-dim 3 \
@@ -19,7 +18,7 @@ python train.py --model siren \
                               --beta $beta \
                               --epochs  $epoch \
                               --plot-epoch $save_epoch \
-                              --save-dir third \
+                              --save-dir $save_name \
                               --image-path $image_path \
                               --lr 0.01 \
                               --lr-end 0.001 \

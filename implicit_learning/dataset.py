@@ -117,7 +117,8 @@ class ImageDataset(Dataset):
             raise ValueError()
         
         img = scaler.fit_transform(img)
-        sidelength = config.get("sidelength")
+        sidelength_W = img.size(1)
+        sidelength_H = img.size(2)
         
         # --- Compute gradient and laplacian       
         RGB_grads = [] 
@@ -137,11 +138,12 @@ class ImageDataset(Dataset):
             RGB_grads.append(grads)     
             RGB_laplace.append(laplace)
 
-        self.coords  = get_mgrid(sidelength, 2)
+        self.coords  = get_mgrid(sidelength_W, sidelength_H, 2)
         self.pixels  = torch.stack(RGB_pixels,dim=1).view(-1,  img.shape[0])
         self.grads   = torch.stack(RGB_grads,dim=1).view(-1, img.shape[0], 2)
-        self.laplace = torch.stack(RGB_laplace).view(sidelength, sidelength,1 ,img.shape[0])
-        
+        self.laplace = torch.stack(RGB_laplace).view(sidelength_W, sidelength_H,1 ,img.shape[0])
+        self.side_lengths = (sidelength_W, sidelength_H)
+
     def __len__(self):
         return 1
 

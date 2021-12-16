@@ -4,7 +4,7 @@
 
 from typing import MutableMapping
 from implicit_learning.trainer import PlotTrainer, construct_dataloader
-from implicit_learning.model import  Siren, ReLU_PE_Model, ReLU_Model
+from implicit_learning.model import  Siren, ReLU_PE_Model, ReLU_Model, EoREN
 
 import os 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -14,14 +14,17 @@ import argparse
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str)
+    parser.add_argument("--eoren", action="store_true")
     parser.add_argument("--channel-dim", type=int)
     parser.add_argument("--beta", type=float)
     parser.add_argument("--gradient-type", type=str)
     parser.add_argument("--epochs", type=int)
+    parser.add_argument("--bias-epochs", type=int)
     parser.add_argument("--plot-epoch", type=int)
+    parser.add_argument("--plot-bias-epoch", type=int)
     parser.add_argument("--save-dir", type=str)
     parser.add_argument("--image-path", type=str)
-    parser.add_argument("--image-length", type=int)
+    parser.add_argument("--sidelength", type=int)
     parser.add_argument("--lr", type=float)
     parser.add_argument("--lr-end", type=float)
     parser.add_argument("--hidden-layers", type=int)
@@ -43,14 +46,16 @@ config = {
     },
     "beta":args.beta,
     "gradient_type": args.gradient_type,
-    "sidelength":args.image_length,
+    "sidelength":args.sidelength,
     "epochs":args.epochs,
+    "bias_epochs":args.bias_epochs,
     "lr":args.lr,
     "lr_end":args.lr_end,
     "batch_size":1,
     "data-path":args.image_path,
     "plot_epoch":args.plot_epoch,
-    "save_dir":"checkpoint/"+f"{dataname}_{args.channel_dim}_{args.model}_epochs:{args.epochs}_beta:{args.beta}_layers:{args.hidden_layers}_dim:{args.hidden_features}_{args.save_dir}",
+    "plot_bias_epoch":args.plot_bias_epoch,
+    "save_dir":args.save_dir+"_checkpoint/"+f"{dataname}_{args.channel_dim}_{args.model}_epochs:{args.epochs}_beta:{args.beta}_layers:{args.hidden_layers}_dim:{args.hidden_features}_{args.save_dir}",
     "high_resolution": args.high_resolution,
     "plot_full":args.plot_full,
     "plot_each":args.plot_each
@@ -68,11 +73,17 @@ elif args.model =="siren":
 else:
     raise ValueError()
 
-if not os.path.isdir("checkpoint"):
-    os.mkdir("checkpoint")
+if not os.path.isdir(args.save_dir+"_checkpoint/"):
+    os.mkdir(args.save_dir+"_checkpoint/")
 if not os.path.isdir(config['save_dir']):
     os.mkdir(config['save_dir'])
 
 model.cuda()
-trainer = PlotTrainer(model, *construct_dataloader(config), config)
-trainer.train()
+if args.eoren:
+    eoren = EoREN(model, config['model']['out_features'] )
+    trainer = PlotTrainer(*construct_dataloader(config), config)
+    trainer.train(eoren.base_model)
+    trainer.train_bias(eoren)
+else:
+    trainer = PlotTrainer(*construct_dataloader(config), config)
+    trainer.train(model)
