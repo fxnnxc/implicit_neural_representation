@@ -27,7 +27,7 @@ python train.py --model siren \
                 --plot-epoch $save_epoch \
                 --save-dir third \
                 --image-path $image_path \
-                --image-length  $image_length \
+                --sidelength  $image_length \
                 --lr 0.01 \
                 --lr-end 0.001 \
                 --plot-full \

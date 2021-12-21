@@ -8,6 +8,8 @@ from torch.utils.data import Dataset, DataLoader
 import scipy.ndimage
 import copy
 from PIL import Image
+from torchvision.transforms import Resize, Compose, ToTensor, Normalize, Scale
+
 
 # class CustomDataset(Dataset):
 #     def __init__(self, transform):
@@ -104,10 +106,19 @@ from PIL import Image
 #         return self.coords, {'pixels':self.pixels, 'grads':self.grads, 'laplace':self.laplace}
 
 
+import numpy as np 
 class ImageDataset(Dataset):
-    def __init__(self, config, transform,scaler):
+    def __init__(self, config,scaler):
         super().__init__()
         img = Image.open(config['data-path'])
+
+        p = Compose([Scale((256,256))])        
+        transform = Compose([
+            Resize(256),
+            ToTensor(),
+            #Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))
+                ])
+        img = p(img)
         img = transform(img)
         if len(img.size()) ==2:
             img = img.unsqueeze(0)
@@ -116,6 +127,7 @@ class ImageDataset(Dataset):
         elif config['model']['out_features'] != img.size(0):
             raise ValueError()
         
+
         img = scaler.fit_transform(img)
         sidelength_W = img.size(1)
         sidelength_H = img.size(2)
@@ -143,6 +155,7 @@ class ImageDataset(Dataset):
         self.grads   = torch.stack(RGB_grads,dim=1).view(-1, img.shape[0], 2)
         self.laplace = torch.stack(RGB_laplace).view(sidelength_W, sidelength_H,1 ,img.shape[0])
         self.side_lengths = (sidelength_W, sidelength_H)
+        print(self.coords.size())
 
     def __len__(self):
         return 1

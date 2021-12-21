@@ -15,20 +15,14 @@ import copy
 from tqdm import tqdm 
 
 from implicit_learning.dataset import ImageDataset
-from torchvision.transforms import Resize, Compose, ToTensor, Normalize
 from torch.utils.data import DataLoader 
 
 def construct_dataloader(config):
-    sidelength = config['sidelength']
     scaler = MinMaxScaler(config['model']['out_features'])
-    transform = Compose([
-        Resize(sidelength),
-        ToTensor(),
-        #Normalize(torch.Tensor([0.5]), torch.Tensor([0.5]))
-    ])
-    train = ImageDataset(config, transform=transform, scaler=scaler)
-    valid = ImageDataset(config, transform=transform, scaler=scaler)
-    test  = ImageDataset(config, transform=transform, scaler=scaler)
+
+    train = ImageDataset(config, scaler=scaler)
+    valid = ImageDataset(config, scaler=scaler)
+    test  = ImageDataset(config, scaler=scaler)
     
     train_dataloader =  DataLoader(train, batch_size=config.get("batch_size"), shuffle=True, pin_memory=True)
     valid_datalodaer =  DataLoader(valid, batch_size=config.get("batch_size"), shuffle=True, pin_memory=True)
@@ -71,7 +65,7 @@ class PlotTrainer():
         print(self.sidelength_W, self.sidelength_H)
         self.channel_dim = config.get("model")['out_features']
         self.input_dim = config.get("model")['in_features']
-        self.size = (self.sidelength_W, self.sidelength_H, self.channel_dim)
+        self.size = (self.sidelength_H, self.sidelength_W, self.channel_dim)
 
         self.beta = config.get("beta") 
         self.df = pd.DataFrame(columns=["grad_loss", "value_loss", "psnr", "ssim", "lr"])        

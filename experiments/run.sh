@@ -1,17 +1,17 @@
 # -----------------------------
 # 2021.11.24 Bumjin Park
 # -----------------------------
-epoch=2000
-save_epoch=400
-image_path=../data/Set14/ppt3.png
+epoch=100
+save_epoch=10
+image_path=../data/Set14/man.png
 beta=1.0
 gradient_type=convolve
-save_name=1
+save_name=manman
 
 for gradient_type in convolve
 do 
 python train.py --model siren \
-                             --channel-dim 3 \
+                             --channel-dim 1 \
                               --hidden-layers 5 \
                               --hidden-features 256 \
                               --sidelength 256 \
