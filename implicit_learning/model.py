@@ -87,7 +87,7 @@ class ReLU_PE_Model(nn.Module):
         self.L = L
 
     def position_encoding_forward(self,x):
-        B,C = x.shape
+        _, B,C = x.shape
         x = x.view(B,C,1)
         results = [x]
         for i in range(1, self.L+1):
@@ -98,11 +98,11 @@ class ReLU_PE_Model(nn.Module):
             results.append(sin_x)
         results = torch.cat(results, dim=2)
         results = results.permute(0,2,1)
-        results = results.reshape(B,-1)
+        results = results.reshape(1, B,-1)
         return results
 
     def position_encoding_backward(self,x):
-        B,C = x.shape
+        _, B,C = x.shape
         x = x.view(B,C,1)
         results = [torch.ones_like(x)]
         for i in range(1, self.L+1):
@@ -119,7 +119,7 @@ class ReLU_PE_Model(nn.Module):
     def forward(self, x, get_gradient=False):
         # save middle result for gradient calculation
         x = x.clone().detach().requires_grad_(True) # allows to take derivative w.r.t. input
-        x = x.view(-1, 2)
+        x = x.view(1,-1, 2)
         relu_masks = []
         x_pe = self.position_encoding_forward(x)
         middle_result = x_pe
@@ -241,27 +241,48 @@ class Siren(nn.Module):
         return activations
 
 class OffSetModel(nn.Module):
-    def __init__(self):
+    def __init__(self, channel_dim):
         super().__init__()
-        self.offset_bias = nn.Linear(1,1)
-    
-    def forward(self, x):
-        return self.offset_bias(x)
+        self.channel_dim = channel_dim
 
+        if 1 == self.channel_dim:
+
+            self.offset_bias1 = nn.Linear(1,1).cuda()
+            self.offset_bias1.weight.data.fill_(1.0)
+            self.offset_bias1.bias.data.fill_(0.0)
+        elif 3 == self.channel_dim:
+            self.offset_bias2 = nn.Linear(1,1).cuda()
+            self.offset_bias3 = nn.Linear(1,1).cuda()
+            self.offset_bias2.weight.data.fill_(1.0)
+            self.offset_bias3.weight.data.fill_(1.0)
+            self.offset_bias2.bias.data.fill_(0.0)
+            self.offset_bias3.bias.data.fill_(0.0)
+
+        # self.offset_bias1.weight.requires_grad = False
+        # self.offset_bias2.weight.requires_grad = False
+        # self.offset_bias3.weight.requires_grad = False
+
+
+    def forward(self, x):
+        if 1 == self.channel_dim:
+            x= self.offset_bias1(x[:,:,0].unsqueeze(-1))
+
+        elif 3 == self.channel_dim:
+            x[:,:,0] = self.offset_bias1(x[:,:,0].unsqueeze(-1)).squeeze(-1)
+            x[:,:,1] = self.offset_bias2(x[:,:,1].unsqueeze(-1)).squeeze(-1)
+            x[:,:,2] = self.offset_bias3(x[:,:,2].unsqueeze(-1)).squeeze(-1)
+        return x
 
 class EoREN():
-    def __init__(self, in_features, hidden_features, hidden_layers, out_features, outermost_linear=False, 
-                 first_omega_0=30, hidden_omega_0=30.):
-
-        self.siren = Siren(in_features, hidden_features, hidden_layers, out_features, outermost_linear, first_omega_0, hidden_omega_0)
-        self.offset = OffSetModel()
+    def __init__(self, base_model, channel_dim):
+        self.base_model =  base_model
+        self.offset = OffSetModel(channel_dim)
         
-
     def forward(self, coords):
         coords = coords.clone().detach().requires_grad_(True) # allows to take derivative w.r.t. input
-        g = self.siren.net(coords)
+        g = self.base_model.net(coords)
 
-        g2 = g.clone().detach().requires_grad_(False)
+        g2 = g.clone().detach().requires_grad_(False)/2
         h = self.offset(g2) 
         return h, g, coords   
     

@@ -9,6 +9,7 @@ import math
 from skimage.metrics import structural_similarity as ssim
 
 
+
 def compute_image_gradient(im_array, type, v=1):
     LENGTH = im_array.shape[1], im_array.shape[2]
     im_array = im_array.reshape(*LENGTH)
@@ -56,8 +57,8 @@ def compute_image_gradient(im_array, type, v=1):
 
     grads_x /= (magnitude/LENGTH[0])
     grads_y /= (magnitude/LENGTH[1])
-    grads_x = grads_x.reshape(*LENGTH, 1)
-    grads_y = grads_y.reshape(*LENGTH, 1)
+    grads_x = grads_x.reshape(*LENGTH, 1) 
+    grads_y = grads_y.reshape(*LENGTH, 1) 
     
     return grads_x, grads_y
 
@@ -114,11 +115,6 @@ class MinMaxScaler():
                 else:
                     img[c,:,:] = (img[c,:,:] - MIN) -0.5
             return img
-        elif len(img.size()) ==2:
-            self.MAX = img.max()
-            self.MIN = img.min()
-            assert self.MAX > self.MIN
-            return (img - self.MIN)/(self.MAX-self.MIN)
         else:
             raise NotImplementedError()
     
@@ -138,13 +134,23 @@ class MinMaxScaler():
             raise NotImplementedError()
         return img 
 
-def get_mgrid(sidelen, dim=2):
+
+
+
+def get_mgrid(W,H, dim=2):
     '''Generates a flattened grid of (x,y,...) coordinates in a range of -1 to 1.
     sidelen: int
     dim: int'''
-    tensors = tuple(dim * [torch.linspace(-1, 1, steps=sidelen)])
+    # sidelen = 256
+    # tensors = tuple(dim * [torch.linspace(-1, 1, steps=sidelen)])
+    # tensors = tuple(dim * [torch.linspace(-1, 1, steps=sidelen)])
+    tensors = [torch.linspace(-1, 1, steps=H), torch.linspace(-1, 1, steps=W)]
+    # print(dim * [torch.linspace(-1, 1, steps=sidelen)])
+    # print(len(tensors))
     mgrid = torch.stack(torch.meshgrid(*tensors), dim=-1)
+    # print(mgrid.size())
     mgrid = mgrid.reshape(-1, dim)
+    # print(mgrid.size())
     return mgrid
 
 
